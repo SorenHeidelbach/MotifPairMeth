@@ -89,7 +89,7 @@ impl<R: Read> PileupChunkReader<R> {
                 self.eof_reached = true;
                 break;
             }
-let n_valid_cov: u32 = atoi::atoi(record.get(9).unwrap_or(b"")).unwrap();
+            let n_valid_cov: u32 = atoi::atoi(record.get(9).unwrap_or(b"")).unwrap();
             if n_valid_cov < self.min_cov {
                 continue;                                                           
             }
