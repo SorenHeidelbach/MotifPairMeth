@@ -41,8 +41,9 @@ impl Contig {
         let mut indices = Vec::new();
         let motif_regex = motif.regex().unwrap();
         let re = Regex::new(&motif_regex).unwrap();
+        // Find matches in the contig sequence of the motif
         re.find_iter(&self.sequence)
-            .map(|m| indices.push(m.start() as usize + motif.position as usize));
+            .map(|m| indices.push(m.start() as usize + motif.position as usize)).for_each(drop);
         indices
     }
 
@@ -52,18 +53,19 @@ impl Contig {
         let motif_regex = complement_motif.regex().unwrap();
         let re = Regex::new(&motif_regex).unwrap();
         re.find_iter(&self.sequence)
-            .map(|m| indices.push(m.start() as usize + complement_motif.position as usize));
+            .map(|m| indices.push(m.start() as usize + complement_motif.position as usize)).for_each(drop);
         indices
     }
 
-    pub fn get_records(&self, position: Vec<usize>, strand: Strand, mod_type: ModType) ->  Vec<&PileupRecord> {
-        position
+    pub fn get_records(&self, position: Vec<usize>, strand: Strand, mod_type: ModType) ->  Option<Vec<&PileupRecord>> {
+        let pos = position
             .iter()
-            .map(|&p| {
+            .filter_map(|&p| {
                 let key = (p, strand, mod_type);
-                self.records.get(&key).unwrap()
+                self.records.get(&key)
             })
-            .collect()
+            .collect();
+        Some(pos)
     }
 }
 

@@ -1,15 +1,17 @@
 use anyhow::Context;
 use anyhow::Result;
 use seq_io::fasta::{Reader, Record};
+use std::collections::HashMap;
 use std::path::Path;
+use ahash::AHashMap;
 use crate::sequence::Contig;
 
 
-pub fn read_fasta_file(file_path: &Path) -> Result<Vec<Contig>> {
+pub fn read_fasta_file(file_path: &Path) -> Result<HashMap<String, Contig>> {
     let mut reader = Reader::from_path(file_path)
         .with_context(|| format!("Error reading fasta file: {}", file_path.display()))?;
 
-    let mut records = Vec::new();
+    let mut records = HashMap::new();
 
     while let Some(record_result) = reader.next() {
         let record = record_result.with_context(|| "Error reading fasta record")?;
@@ -22,7 +24,7 @@ pub fn read_fasta_file(file_path: &Path) -> Result<Vec<Contig>> {
 
 
         let contig: Contig = Contig::new(&id, &sequence);
-        records.push(contig);
+        records.insert(id, contig);
 
 
     }

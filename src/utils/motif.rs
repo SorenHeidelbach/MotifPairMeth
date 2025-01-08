@@ -48,6 +48,15 @@ impl ComplementMotif {
         }
         Ok(regex)
     }
+
+    pub fn as_string(&self) -> String {
+        let sequence: String = self.sequence.iter().map(|b| b.to_string()).collect();
+        format!("{}_{}_{}", sequence, self.mod_type.to_string(), self.position)
+    }
+
+    pub fn sequence_string(&self) -> String {
+        self.sequence.iter().map(|b| b.to_string()).collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,12 +114,32 @@ impl Motif {
         ComplementMotif::new(&reversed_sequence, mod_type_str, position)
     }
 
+    pub fn reverse_complement_sequence(&self) -> String {
+        let reversed_sequence: String = self
+            .sequence
+            .iter()
+            .rev()
+            .map(|base| base.complement().to_string())
+            .collect::<String>();
+        reversed_sequence
+
+    }
+
     pub fn regex(&self) -> Result<String> {
         let mut regex = String::new();
         for base in self.sequence.iter() {
             regex.push_str(&base.to_regex());
         }
         Ok(regex)
+    }
+
+    pub fn as_string(&self) -> String {
+        let sequence: String = self.sequence.iter().map(|b| b.to_string()).collect();
+        format!("{}_{}_{}", sequence, self.mod_type.to_string(), self.position)
+    }
+
+    pub fn sequence_string(&self) -> String {
+        self.sequence.iter().map(|b| b.to_string()).collect()
     }
 }
 
