@@ -46,6 +46,7 @@ impl<R: Read> PileupChunkReader<R> {
         let reader = ReaderBuilder::new()
             .delimiter(b'\t')
             .has_headers(false)
+            .buffer_capacity(128 * (1 << 10))
             .from_reader(inner);
         Self {
             reader,
