@@ -7,3 +7,5 @@ tunnel*
 *.sh
 
 motif_comp*
+
+test_run

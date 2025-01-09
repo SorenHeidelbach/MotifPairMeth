@@ -1,32 +1,66 @@
-use anyhow::Ok;
-use data::GenomeWorkspace;
-use motif_methylation_state::utils::strand::Strand;
-use motif_methylation_state::utils::{iupac, modtype, motif};
-use anyhow::{Result, bail};
+use std::{
+    collections::btree_map::Keys, f32::NAN, fs::File, path::Path, process::Output, time::Instant
+};
+use bio::bio_types::strand;
+use motif_methylation_state::utils::{
+    modtype, 
+    motif,
+    motif::MotifLike,
+    strand::Strand,
+};
+use clap::Parser;
 use env_logger::Env;
 use log::{debug, info, log_enabled, warn, Level};
-use std::fs::File;
-use std::path::Path;
-use clap::Parser;
-use anyhow::anyhow;
-use polars::prelude::*;
-use polars::df;
-use std::time::Instant;
+use anyhow::{Result, bail, anyhow};
+use polars::prelude::OwnedBatchedCsvReader;
+
 mod pileup;
 mod cli;
 mod fasta_reader;
 mod sequence;
 mod data;
+
 fn main() {
+    let args = cli::Cli::parse();
+    // Set up logging level
+    match args.verbosity {
+        cli::LogLevel::silent => {
+            env_logger::Builder::from_env(
+                Env::default().default_filter_or("off")
+            ).init();
+        }
+        cli::LogLevel::normal => {
+            env_logger::Builder::from_env(
+                Env::default().default_filter_or("info")
+            ).init();
+        }
+        cli::LogLevel::verbose => {
     env_logger::Builder::from_env(
         Env::default().default_filter_or("debug")
     ).init();
+        }
+    }
+
+    // Create output directory
     info!("Running motif methylation state");
-    
-    std::fs::create_dir("motif_complement_methylation")
-    .map_err(|e| anyhow!("Error creating output directory: {}", e));
-    let args = cli::Cli::parse();
-    motif_methylation_state(&args).unwrap();
+    let out_path = Path::new(&args.out);
+    match out_path.exists() {
+        true => {
+            panic!("Output directory already exists");
+        }
+        false => {
+            match std::fs::create_dir(out_path) {
+                Ok(_) => info!("Created output directory"),
+                Err(e) => panic!("Could not create output directory: {}", e),
+            }
+        }
+    }
+
+    // Run the main function
+    match motif_methylation_state(&args) {
+        Ok(_) => info!("Finished running motif methylation state"),
+        Err(e) => panic!("Error running motif methylation state: {}", e),
+    }
 }
 
 

@@ -1,6 +1,6 @@
+use clap::Command;
 // src/cli.rs
-use clap::Parser;
-
+use clap::{Parser, ValueEnum};
 /// A CLI tool that processes a file with optional numeric parameters.
 #[derive(Parser, Debug)]
 #[command(name = "my_cli", version, about = "An example CLI")]
@@ -19,10 +19,18 @@ pub struct Cli {
 
     #[arg(
         value_name = "MOTIFS",
-        help = "Motifs to analyze in the format: 'ACGT_a_0'"
-
+        help = "Comeplement motif pairs in the format: 'MOTIF_TYPE1_POS1_TYPE2_POS2', e.g. 'ACGT_a_0_m_3' or 'CCWGG_4mC_0_5mC_3'"
     )]
     pub motifs: Option<Vec<String>>,
+
+    #[arg(
+        long,
+        short,
+        default_value = "motif_methylation_state",
+        value_name = "OUT",
+        help = "Output file path"
+    )]
+    pub out: String,
 
     #[arg(
         long, 
@@ -33,6 +41,7 @@ pub struct Cli {
     
     #[arg(
         long, 
+        short,
         default_value = "5", 
         help = "Number of threads to use"
     )]
@@ -46,9 +55,18 @@ pub struct Cli {
     pub batch_size: u32,
 
     #[arg(
-        long, 
-        global=true, 
-        help="Verbose mode"
+        value_enum,
+        long,
+        default_value = "normal",
+        value_name = "VERBOSITY",
+        help = "Verbosity level"
     )]
-    pub verbose: bool,
+    pub verbosity: LogLevel,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+pub enum LogLevel {
+    verbose,
+    normal,
+    silent
 }
