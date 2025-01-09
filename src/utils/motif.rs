@@ -8,56 +8,12 @@ pub struct ComplementMotif {
     pub position: u8,
 }
 
-impl ComplementMotif {
-    pub fn new(sequence: &str, mod_type: &str, position: u8) -> Result<Self, anyhow::Error> {
-        let parsed_sequence = sequence
-            .chars()
-            .map(|c| {
-                IupacBase::from_char(c).map_err(|_| {
-                    anyhow::anyhow!("Error parsing base: {}, in sequence: {}. ", c, sequence)
-                })
-            })
-            .collect::<Result<Vec<IupacBase>, anyhow::Error>>()?;
-        let mod_type = mod_type.parse::<ModType>()?;
-
-        let base_at_position = parsed_sequence.get(position as usize).ok_or_else(|| {
-            anyhow::anyhow!(
-                "Position {} is out of bounds for sequence: {}",
-                position,
-                sequence
-            )
-        })?;
-        if base_at_position != &mod_type.get_iupac_base().complement() {
-            anyhow::bail!(
-                "The complement base at position {} ({}) does not match mod type: {}",
-                position,
-                base_at_position.complement().to_string(),
-                mod_type.to_string()
-            );
-        }
-        Ok(Self {
-            sequence: parsed_sequence,
-            mod_type,
-            position,
-        })
-    }
-    pub fn regex(&self) -> Result<String> {
-        let mut regex = String::new();
-        for base in self.sequence.iter() {
-            regex.push_str(&base.to_regex());
-        }
-        Ok(regex)
-    }
-
-    pub fn as_string(&self) -> String {
-        let sequence: String = self.sequence.iter().map(|b| b.to_string()).collect();
-        format!("{}_{}_{}", sequence, self.mod_type.to_string(), self.position)
-    }
-
-    pub fn sequence_string(&self) -> String {
-        self.sequence.iter().map(|b| b.to_string()).collect()
-    }
+pub trait MotifLike {
+    fn sequence_string(&self) -> String;
+    fn regex(&self) -> Result<String>;
+    fn as_string(&self) -> String;
 }
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Motif {
@@ -122,10 +78,14 @@ impl Motif {
             .map(|base| base.complement().to_string())
             .collect::<String>();
         reversed_sequence
-
+    }
+}
+impl MotifLike for Motif {
+    fn sequence_string(&self) -> String {
+        self.sequence.iter().map(|b| b.to_string()).collect()
     }
 
-    pub fn regex(&self) -> Result<String> {
+    fn regex(&self) -> Result<String> {
         let mut regex = String::new();
         for base in self.sequence.iter() {
             regex.push_str(&base.to_regex());
@@ -133,20 +93,71 @@ impl Motif {
         Ok(regex)
     }
 
-    pub fn as_string(&self) -> String {
+    fn as_string(&self) -> String {
         let sequence: String = self.sequence.iter().map(|b| b.to_string()).collect();
         format!("{}_{}_{}", sequence, self.mod_type.to_string(), self.position)
     }
+}
 
-    pub fn sequence_string(&self) -> String {
-        self.sequence.iter().map(|b| b.to_string()).collect()
+
+impl ComplementMotif {
+    pub fn new(sequence: &str, mod_type: &str, position: u8) -> Result<Self, anyhow::Error> {
+        let parsed_sequence = sequence
+            .chars()
+            .map(|c| {
+                IupacBase::from_char(c).map_err(|_| {
+                    anyhow::anyhow!("Error parsing base: {}, in sequence: {}. ", c, sequence)
+                })
+            })
+            .collect::<Result<Vec<IupacBase>, anyhow::Error>>()?;
+        let mod_type = mod_type.parse::<ModType>()?;
+
+        let base_at_position = parsed_sequence.get(position as usize).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Position {} is out of bounds for sequence: {}",
+                position,
+                sequence
+            )
+        })?;
+        if base_at_position != &mod_type.get_iupac_base().complement() {
+            anyhow::bail!(
+                "The complement base at position {} ({}) does not match mod type: {}",
+                position,
+                base_at_position.complement().to_string(),
+                mod_type.to_string()
+            );
+        }
+        Ok(Self {
+            sequence: parsed_sequence,
+            mod_type,
+            position,
+        })
     }
 }
 
+impl MotifLike for ComplementMotif {
+    fn sequence_string(&self) -> String {
+        self.sequence.iter().map(|b| b.to_string()).collect()
+    }
+
+    fn regex(&self) -> Result<String> {
+        let mut regex = String::new();
+        for base in self.sequence.iter() {
+            regex.push_str(&base.to_regex());
+        }
+        Ok(regex)
+    }
+
+    fn as_string(&self) -> String {
+        let sequence: String = self.sequence.iter().map(|b| b.to_string()).collect();
+        format!("{}_{}_{}", sequence, self.mod_type.to_string(), self.position)
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MotifPair {
     pub forward: Motif,
     pub reverse: Motif,
+    pub is_palindromic: bool,
 }
 
 impl MotifPair {
@@ -162,8 +173,10 @@ impl MotifPair {
                 );
             }
         }
-        Ok(Self { forward, reverse })
+        let is_palindromic = forward == reverse;
+        Ok(Self { forward, reverse, is_palindromic })
     }
+
 }
 
 #[cfg(test)]
