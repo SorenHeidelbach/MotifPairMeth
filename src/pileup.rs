@@ -1,21 +1,16 @@
 use log::{debug, info, warn};
 use csv::{ByteRecord, ReaderBuilder};
-use core::panic;
-use std::io::{Read};
+use std::io::Read;
 use std::collections::VecDeque;
-use std::thread::current;
 use anyhow::anyhow;
-use anyhow::{Result};
+use anyhow::Result;
 use atoi;
 use motif_methylation_state::utils::{
-    iupac, 
-    modtype, 
-    motif,
     modtype::ModType,
     strand::Strand,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PileupRecord {
     pub reference: String,
     pub position: usize,
@@ -27,7 +22,7 @@ pub struct PileupRecord {
     pub n_diff: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PileupChunk {
     pub reference: String,
     pub records: Vec<PileupRecord>,
@@ -173,18 +168,4 @@ fn parse_and_validate_pileup_record(
         n_diff: n_diff,
     };
     Ok(pileup_record)
-}
-
-
-
-impl PileupRecord {
-    fn is_valid(&self, min_cov: u32) -> bool {
-        if self.n_valid_cov < min_cov {
-            return false;
-        }
-        true
-    }
-    fn reference(&self) -> &str {
-        &self.reference
-    }
 }
