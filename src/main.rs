@@ -35,9 +35,9 @@ fn main() {
             ).init();
         }
         cli::LogLevel::verbose => {
-    env_logger::Builder::from_env(
-        Env::default().default_filter_or("debug")
-    ).init();
+            env_logger::Builder::from_env(
+                Env::default().default_filter_or("debug")
+            ).init();
         }
     }
 
@@ -99,7 +99,7 @@ fn motif_methylation_state(
                 let genome_work_space = builder.build();
 
                 for (refenrece_id, contig) in genome_work_space.contigs.into_iter() {
-                    motif_methylation_pattern(&contig, &motifs)?;
+                    motif_methylation_pattern(&contig, &motifs, &args.out)?;
                     
                 }
             }
@@ -120,132 +120,164 @@ fn motif_methylation_state(
     Ok(())
 }
 
-struct MotifMethylationState {
-    contig: sequence::Contig,
-    start_position: u32,
-    motif: Vec<motif::Motif>,
-    pos_1: u32,
-    mod_type_1: modtype::ModType,
-    n_mod_1: u32,
-    n_nomod_1: u32,
-    n_diff_1: u32,
-    pos_2: u32,
-    mod_type_2: modtype::ModType,
-    motif_2: Vec<motif::Motif>,
-    n_mod_2: u32,
-    n_nomod_2: u32,
-    n_diff_2: u32,
-}
 
 fn motif_methylation_pattern(
     contig: &sequence::Contig,
     motifs: &Vec<motif::MotifPair>,
+    out: &str,
 ) -> Result<(), anyhow::Error> {
-    let out_path = format!("motif_complement_methylation/{}.tsv", contig.reference);
-    let mut csv_writer = csv::WriterBuilder::new()
-        .delimiter(b'\t')
-        .from_path(out_path)?;
-    csv_writer.write_record(&[
-        "contig",
-        "start_position",
-        "motif",
-        "mod_position",
-        "mod_type",
-        "position",
-        "n_mod",
-        "n_nomod",
-        "n_diff",
-        "mod_position_2",
-        "mod_type_2",
-        "position_2",
-        "n_mod_2",
-        "n_nomod_2",
-        "n_diff_2",
-    ])?;
+    let out_path = format!("{}/{}.tsv", out, contig.reference);
+    let mut record_writer = MotifPairRecordWriter::new(&out_path)?; 
+    record_writer.write_header()?;
 
     for motif in motifs {
-        debug!("Processing motif pair: {:?}", motif);        // motif 1
-        let fwd_indices = contig.find_motif_indeces(motif.forward.clone());
-        debug!("Found {} forward indices for motif 1", fwd_indices.len());
-        let rev_indices = contig.find_complement_motif_indeces(motif.forward.clone());
-        debug!("Found {} reverse indices for motif 1", rev_indices.len());
-        let modtype = motif.forward.mod_type;
-        let fwd_records = contig.get_records(fwd_indices, Strand::Positive,modtype);
-        let rev_records = contig.get_records(rev_indices, Strand::Negative,modtype);
-        let records = {
-            match (&fwd_records, &rev_records) {
-                (Some(fwd), Some(rev)) => Some(fwd.iter().chain(rev.iter())),
-                (Some(fwd), None) => Some(fwd.iter().chain([].iter())),
-                (None, Some(rev)) => Some(rev.iter().chain([].iter())),
-                (None, None) => None,
-            }
+        debug!("Processing motif pair: {:?}", motif);
+        debug!("Processing forward strand");
+        let mod_position_shift = motif.reverse.reverse_complement().unwrap().position - motif.forward.position;
+
+        // Process forward strand
+        let fwd_indices = match contig.find_motif_indeces(&motif.forward) {
+            Some(i) => i,
+            None => continue,
         };
-        if records.is_none() {
-            info!("No records found for motif 1 of pair: {:?}", motif);
+        for index in fwd_indices {
+            let record_1 = match contig.records.get(&(index, Strand::Positive, motif.forward.mod_type)) {
+                Some(r) => r,
+                None => continue,
+            };
+            let record_2 = match contig.records.get(&(index + mod_position_shift as usize, Strand::Negative, motif.reverse.mod_type)) {
+                Some(r) => r,
+                None => continue,
+            };
+            record_writer.write_record(motif, record_1, record_2)?;
+        }
+        // If motif pair is palindromic, the reverse is captured in the reverse complement of the forward motif
+        if motif.is_palindromic {
+            debug!("Skipping reverse strand, as motifs are palindromic");
             continue;
         }
 
-        // motif 2
-        let fwd_indices_2 = contig.find_motif_indeces(motif.reverse.clone());
-        let rev_indices_2 = contig.find_complement_motif_indeces(motif.reverse.clone());
-        let modtype_2 = motif.reverse.mod_type;
-        let fwd_records_2 = contig.get_records(fwd_indices_2, Strand::Positive,modtype_2);
-        let rev_records_2 = contig.get_records(rev_indices_2, Strand::Negative,modtype_2);
-        let records_2 = {
-            match (&fwd_records_2, &rev_records_2) {
-                (Some(fwd), Some(rev)) => Some(rev.iter().chain(fwd.iter())),
-                (Some(fwd), None) => Some(fwd.iter().chain([].iter())),
-                (None, Some(rev)) => Some(rev.iter().chain([].iter())),
-                (None, None) => None,
-            }
+        // Process reverse strand
+        debug!("Processing reverse strand");
+        let rev_indices = match contig.find_complement_motif_indeces(&motif.forward) {
+            Some(i) => i,
+            None => continue,
         };
-        if records_2.is_none() {
-            info!("No records found for motif 2 of pair: {:?}", motif);
-            continue;
+        for index in rev_indices {
+            let key1 = (index, Strand::Negative, motif.forward.mod_type);
+            let record_1 = match contig.records.get(&key1) {
+                Some(r) => r,
+                None => continue,
+            };
+            let key2 = (index - mod_position_shift as usize, Strand::Positive, motif.reverse.mod_type);
+            let record_2 = match contig.records.get(&key2) {
+                Some(r) => r,
+                None => continue,
+            };
+            record_writer.write_record(motif, record_1, record_2)?;
         }
-
-        // combine records
-        let zip_iter = records.unwrap().zip(records_2.unwrap());
-        for (record, record_2) in zip_iter {
-            let start_position = record.position as u32 - motif.forward.position as u32;
-            let n_nomod = record.n_valid_cov - record.n_mod;
-            let n_nomod_2 = record_2.n_valid_cov - record_2.n_mod;
-
-            csv_writer.write_record(
-                &[
-                    record.reference.clone(),
-                    start_position.to_string(),
-                    motif.forward.as_string(),
-                    motif.forward.position.to_string(),
-                    motif.forward.mod_type.to_string().to_string(),
-                    record.position.to_string(),
-                    record.n_mod.to_string(),
-                    n_nomod.to_string(),
-                    record.n_diff.to_string(),
-                    motif.reverse.position.to_string(),
-                    motif.reverse.mod_type.to_string().to_string(),
-                    record_2.position.to_string(),
-                    record_2.n_mod.to_string(),
-                    n_nomod_2.to_string(),
-                    record_2.n_diff.to_string(),
-                ],
-            )?;
-
-        }
+        
     }
-    csv_writer.flush()?;
+    record_writer.flush()?;
     Ok(())
 }
 
-fn parse_motif_string(motif_string: String) -> Result<motif::Motif, anyhow::Error> {
-    let parts: Vec<&str> = motif_string.split('_').collect();
-    if parts.len() != 3 {
-        bail!("Invalid motif string: {}", motif_string);
+#[derive(Debug)]
+struct MotifPairRecordWriter {
+    csv_writer: csv::Writer<File>,
+}
+
+impl MotifPairRecordWriter {
+    pub fn new(out_path: &str) -> Result<Self, anyhow::Error> {
+        let csv_writer = csv::WriterBuilder::new()
+            .delimiter(b'\t')
+            .from_path(out_path)?;
+        Ok(Self { csv_writer })
     }
-    let sequence = parts[0];
-    let mod_type = parts[1];
-    let position = parts[2].parse::<u8>()?;
-    motif::Motif::new(sequence, mod_type, position)
+
+    pub fn write_header (&mut self) -> Result<(), anyhow::Error> {
+        self.csv_writer.write_record(&[
+            "contig_id",
+            "motif_start_position",
+            "strand",
+            "motif_sequence",
+            "motif_mod_position",
+            "mod_type_1",
+            "position_1",
+            "n_mod_1",
+            "n_nomod_1",
+            "n_diff_1",
+            "motif_mod_position_2",
+            "mod_type_2",
+            "position_2",
+            "n_mod_2",
+            "n_nomod_2",
+            "n_diff_2",
+            "methylation_difference",
+            "odds_ratio",
+            "classification",
+        ])?;
+        Ok(())
+    }
+
+    pub fn write_record(
+        &mut self,
+        motif_pair: &motif::MotifPair,
+        record_1: &pileup::PileupRecord,
+        record_2: &pileup::PileupRecord,
+    ) -> Result<(), anyhow::Error> {
+        let start_position = record_1.position as u32 - motif_pair.forward.position as u32;
+        let n_nomod_1 = record_1.n_valid_cov - record_1.n_mod;
+        let mean_mod_1 = record_1.n_mod as f64 / record_1.n_valid_cov as f64;
+        let n_nomod_2 = record_2.n_valid_cov - record_2.n_mod;
+        let mean_mod_2 = record_2.n_mod as f64 / record_2.n_valid_cov as f64;
+        let motif_2_mod_pos = motif_pair.reverse.reverse_complement().unwrap().position;
+
+        let methylation_diff = mean_mod_1 - mean_mod_2;
+        let abs_methylation_diff = methylation_diff.abs();
+        let odds_1 = mean_mod_1 / (1.0 - mean_mod_1);
+        let odds_2 = mean_mod_2 / (1.0 - mean_mod_2);
+        let odds_ratio: f64;
+        if odds_2 == 0.0 || odds_1 == 0.0 {
+            odds_ratio = f64::NAN;
+        } else {
+            odds_ratio = odds_1 / odds_2;
+        }
+        let classification = match abs_methylation_diff {
+            x if x > 0.5 => "differential",
+            x if x > 0.1 => "moderately differential",
+            _ => "non-differential",
+        };
+        self.csv_writer.write_record(
+            &[
+                record_1.reference.clone(),
+                start_position.to_string(),
+                record_1.strand.to_string(),
+                motif_pair.forward.sequence_string(),
+                motif_pair.forward.position.to_string(),
+                motif_pair.forward.mod_type.to_string().to_string(),
+                record_1.position.to_string(),
+                record_1.n_mod.to_string(),
+                n_nomod_1.to_string(),
+                record_1.n_diff.to_string(),
+                motif_2_mod_pos.to_string(),
+                motif_pair.reverse.mod_type.to_string().to_string(),
+                record_2.position.to_string(),
+                record_2.n_mod.to_string(),
+                n_nomod_2.to_string(),
+                record_2.n_diff.to_string(),
+                abs_methylation_diff.to_string(),
+                odds_ratio.to_string(),
+                classification.to_string(),
+            ],
+        )?;
+        Ok(())
+
+    }
+    pub fn flush(&mut self) -> Result<(), anyhow::Error> {
+        self.csv_writer.flush()?;
+        Ok(())
+    }
 }
 
 fn parse_motif_pair_string(motif_pair_string: String) -> Result<motif::MotifPair, anyhow::Error> {
@@ -266,9 +298,6 @@ fn parse_motif_pair_string(motif_pair_string: String) -> Result<motif::MotifPair
     Ok(pair)
 }
 
-fn parse_motif_strings(motif_strings: Vec<String>) -> Result<Vec<motif::Motif>, anyhow::Error> {
-    motif_strings.into_iter().map(|s| parse_motif_string(s)).collect()
-}
 fn parse_motif_pair_strings(motif_pair_strings: Vec<String>) -> Result<Vec<motif::MotifPair>, anyhow::Error> {
     motif_pair_strings.into_iter().map(|s| parse_motif_pair_string(s)).collect()
 }
