@@ -2,7 +2,10 @@ on:
   push:
     tags:
       - "v*"
-     
+
+env:
+  RUSTFLAGS: "-Awarnings"
+
 jobs:
   build-and-release:
     runs-on: ${{ matrix.os }}
