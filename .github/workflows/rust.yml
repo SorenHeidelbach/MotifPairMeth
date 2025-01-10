@@ -36,6 +36,8 @@ jobs:
           override: true
 
       - name: Build the binary
+        env: 
+          RUSTFLAGS: "-Awarnings"
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: test the binary
