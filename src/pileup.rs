@@ -84,7 +84,7 @@ impl<R: Read> PileupChunkReader<R> {
                 self.eof_reached = true;
                 break;
             }
-            let n_valid_cov: u32 = atoi::atoi(record.get(9).unwrap_or(b"")).unwrap();
+            let n_valid_cov: u32 = atoi::atoi(record.get(9).expect("Failed to get n_valid_cov")).expect("Failed to parse n_valid_cov value");
             if n_valid_cov < self.min_cov {
                 continue;                                                           
             }
@@ -155,7 +155,7 @@ fn parse_and_validate_pileup_record(
         .ok_or_else(|| anyhow!("Could not parse pileup n_mod value"))?;
     let n_canonical = atoi::atoi(record.get(12).unwrap_or(b""))
         .ok_or_else(|| anyhow!("Could not parse pileup n_canonical value"))?;
-    let n_diff = atoi::atoi(record.get(17).unwrap_or(b""))
+    let n_diff = atoi::atoi(record.get(16).unwrap_or(b""))
         .ok_or_else(|| anyhow!("Could not parse pileup n_diff value"))?;
     let pileup_record = PileupRecord {
         reference: reference,
@@ -169,3 +169,257 @@ fn parse_and_validate_pileup_record(
     };
     Ok(pileup_record)
 }
+
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Write, Seek, SeekFrom};
+    use tempfile::NamedTempFile;
+
+    /// Creates one line of a pileup-like record, with many columns separated by tabs.
+    ///
+    /// Columns:
+    ///   1) reference
+    ///   2) position
+    ///   3) '.'
+    ///   4) mod_type
+    ///   5) '.'
+    ///   6) strand
+    ///   7) '.'
+    ///   8) '.'
+    ///   9) '.'
+    ///   10) n_valid_cov
+    ///   11) '.'
+    ///   12) n_mod
+    ///   13) n_canonical
+    ///   14) '.'
+    ///   15) '.'
+    ///   16) '.'
+    ///   17) n_diff
+    ///   18) '.'
+    ///
+    /// Note: Adjust the placeholders or column order to match your actual parsing logic.
+    fn create_pileup_line(
+        reference: &str,
+        position: usize,
+        strand: &str,
+        mod_type: &str,
+        n_mod: u32,
+        n_valid_cov: u32,
+        n_canonical: u32,
+        n_diff: u32,
+    ) -> String {
+        format!(
+            "{}\t{}\t.\t{}\t.\t{}\t.\t.\t.\t{}\t.\t{}\t{}\t.\t.\t.\t{}\t.\n",
+            reference,    // 1
+            position,     // 2
+            mod_type,     // 4
+            strand,       // 6
+            n_valid_cov,  // 10
+            n_mod,        // 12
+            n_canonical,  // 13
+            n_diff        // 17
+        )
+    }
+    fn create_temp_file(data: &[u8]) -> NamedTempFile {
+        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        temp_file
+            .write_all(data)
+            .expect("Failed to write data");
+        temp_file.seek(SeekFrom::Start(0)).expect("Failed to seek to start");
+        temp_file
+    }
+
+    #[test]
+    fn test_new_pileup_record() {
+        let record = PileupRecord {
+            reference: "contig_1".to_string(),
+            position: 10,
+            strand: Strand::Positive,
+            mod_type: ModType::SixMA,
+            n_mod: 1,
+            n_valid_cov: 10,
+            n_canonical: 2,
+            n_diff: 3,
+        };
+        assert_eq!(record.reference, "contig_1");
+        assert_eq!(record.position, 10);
+        assert_eq!(record.strand, Strand::Positive);
+        assert_eq!(record.mod_type, ModType::SixMA);
+        assert_eq!(record.n_mod, 1);
+        assert_eq!(record.n_valid_cov, 10);
+        assert_eq!(record.n_canonical, 2);
+        assert_eq!(record.n_diff, 3);
+    }
+
+    #[test]
+    fn test_new_pileup_chunk() {
+        let record = PileupRecord {
+            reference: "contig_1".to_string(),
+            position: 10,
+            strand: Strand::Positive,
+            mod_type: ModType::SixMA,
+            n_mod: 1,
+            n_valid_cov: 10,
+            n_canonical: 2,
+            n_diff: 3,
+        };
+        let chunk = PileupChunk {
+            reference: "contig_1".to_string(),
+            records: vec![record],
+        };
+        assert_eq!(chunk.reference, "contig_1");
+        assert_eq!(chunk.records.len(), 1);
+    }
+
+    #[test]
+    fn test_new_pileup_chunk_reader() {
+        let data = b"contig_1\t10\t.\ta\t.\t+\t.\t.\t.\t10\t.\t1\t2\t.\t.\t.\t3\t.\n";
+        let tempfile = create_temp_file(data);
+        let reader = PileupChunkReader::new(tempfile.reopen().unwrap(), 1);
+        assert_eq!(reader.min_cov, 1);
+    }
+    /// Use tempfile to write test data to a file, then test with PileupChunkReader
+    #[test]
+    fn test_with_tempfile() {
+        let mut data = String::new();
+        data.push_str(create_pileup_line(
+            "contig_1", 0, "+", "a", 
+            10, 10, 
+            0, 0).as_str()
+        );
+        data.push_str(create_pileup_line(
+            "contig_1", 1, "+", "a", 
+            10, 10, 
+            0, 0).as_str()
+        );
+        data.push_str(create_pileup_line(
+            "contig_2", 0, "+", "m", 
+            10, 10, 
+            0, 0).as_str()
+        );
+
+        let tempfile = create_temp_file(data.as_bytes());
+        let mut reader = PileupChunkReader::new(tempfile.reopen().unwrap(), 1);
+
+        // First chunk should correspond to 'contig_1'
+        let chunk_opt = reader.next_chunk();
+        assert!(chunk_opt.is_some());
+        let chunk = chunk_opt.unwrap();
+        assert_eq!(chunk.reference, "contig_1");
+        assert_eq!(chunk.records.len(), 2);
+
+        // Next chunk should correspond to 'contig_2'
+        let chunk_opt_2 = reader.next_chunk();
+        assert!(chunk_opt_2.is_some());
+        let chunk_2 = chunk_opt_2.unwrap();
+        assert_eq!(chunk_2.reference, "contig_2");
+        // Only one record in the sample data for contig_2
+        assert_eq!(chunk_2.records.len(), 1);
+
+        // No more data, so the next should be None
+        let chunk_opt_3 = reader.next_chunk();
+        assert!(chunk_opt_3.is_none());
+        assert!(reader.eof_reached);
+    }
+
+    #[test]
+    fn test_low_coverage_filtering() {
+        let mut data = String::new();
+        data.push_str(create_pileup_line(
+            "contig_1", 0, "+", "a", 81, 
+            0, 0, 0).as_str()
+        );
+        data.push_str(create_pileup_line(
+            "contig_1", 1, "+", "a", 82, 
+            3, 0, 0).as_str()
+        );
+        data.push_str(create_pileup_line(
+            "contig_2", 0, "+", "m", 84, 
+            10, 0, 0).as_str()
+        );
+
+        let tempfile = create_temp_file(data.as_bytes());
+        let mut reader = PileupChunkReader::new(tempfile.reopen().unwrap(), 2);
+
+        // First chunk should correspond to 'contig_2'
+        let chunk_opt = reader.next_chunk();
+        assert!(chunk_opt.is_some());
+        let chunk = chunk_opt.unwrap();
+        assert_eq!(chunk.reference, "contig_1");
+        assert_eq!(chunk.records.len(), 1);
+
+        // Next chunk should correspond to 'contig_2'
+        let chunk_opt_2 = reader.next_chunk();
+        assert!(chunk_opt_2.is_some());
+        let chunk_2 = chunk_opt_2.unwrap();
+        assert_eq!(chunk_2.reference, "contig_2");
+        // Only one record in the sample data for contig_2
+        assert_eq!(chunk_2.records.len(), 1);
+
+    }
+
+    #[test]
+    fn test_n_chunks() {
+        let mut data = String::new();
+        data.push_str(create_pileup_line(
+            "contig_1", 0, "+", "a", 10, 
+            10, 0, 0).as_str()
+        );
+        data.push_str(create_pileup_line(
+            "contig_2", 1, "+", "a", 10, 
+            10, 0, 0).as_str()
+        );
+        data.push_str(create_pileup_line(
+            "contig_3", 0, "+", "m", 10, 
+            10, 0, 0).as_str()
+        );
+
+        let tempfile = create_temp_file(data.as_bytes());
+        let mut reader = PileupChunkReader::new(tempfile.reopen().unwrap(), 1);
+
+        let chunks = reader.load_n_chunks(2).unwrap();
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks[0].reference, "contig_1");
+        assert_eq!(chunks[0].records.len(), 1);
+        assert_eq!(chunks[1].reference, "contig_2");
+        assert_eq!(chunks[1].records.len(), 1);
+    }
+    #[test]
+    fn test_parse_and_validate_record() {
+        let record = ByteRecord::from(vec![
+            b"contig_1".to_vec(),
+            b"6".to_vec(),
+            b".".to_vec(),
+            b"a".to_vec(),
+            b".".to_vec(),
+            b"+".to_vec(),
+            b".".to_vec(),
+            b".".to_vec(),
+            b".".to_vec(),
+            b"3".to_vec(),
+            b".".to_vec(),
+            b"1".to_vec(),
+            b"2".to_vec(),
+            b".".to_vec(),
+            b".".to_vec(),
+            b".".to_vec(),
+            b"4".to_vec(),
+            b".".to_vec(),
+        ]);
+        let parsed_record = parse_and_validate_pileup_record(&record, 1).unwrap();
+        assert_eq!(parsed_record.reference, "contig_1");
+        assert_eq!(parsed_record.position, 6);
+        assert_eq!(parsed_record.strand, Strand::Positive);
+        assert_eq!(parsed_record.mod_type, ModType::SixMA);
+        assert_eq!(parsed_record.n_mod, 1);
+        assert_eq!(parsed_record.n_valid_cov, 3);
+        assert_eq!(parsed_record.n_canonical, 2);
+        assert_eq!(parsed_record.n_diff, 4);
+    }
+}
+
