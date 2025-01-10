@@ -36,11 +36,13 @@ jobs:
           override: true
 
       - name: Build the binary
-        env: 
-          RUSTFLAGS: "-Awarnings"
+        env:
+          RUSTFLAGS: "-A warnings"
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: test the binary
+        env:
+          RUSTFLAGS: "-A warnings"
         run: cargo test --release --target ${{ matrix.target }}
 
       - name: rename binary for upload
