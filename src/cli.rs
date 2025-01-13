@@ -1,4 +1,4 @@
-use clap::Command;
+
 // src/cli.rs
 use clap::{Parser, ValueEnum};
 /// A CLI tool that processes a file with optional numeric parameters.
