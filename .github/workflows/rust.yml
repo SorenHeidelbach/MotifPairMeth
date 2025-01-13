@@ -4,7 +4,7 @@ on:
       - "v*"
 
 env:
-  RUSTFLAGS: "-Awarnings"
+  RUSTFLAGS: "-Awarnings"  # Correct syntax
 
 jobs:
   build-and-release:
@@ -34,21 +34,20 @@ jobs:
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          # toolchain: stable
           target: ${{ matrix.target }}
           override: true
 
       - name: Build the binary
         env:
-          RUSTFLAGS: "-Awarnings"
+          RUSTFLAGS: "-Awarnings"  # Corrected syntax
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: test the binary
+      - name: Test the binary
         env:
-          RUSTFLAGS: "-Awarnings"
+          RUSTFLAGS: "-Awarnings"  # Corrected syntax
         run: cargo test --release --target ${{ matrix.target }}
 
-      - name: rename binary for upload
+      - name: Rename binary for upload
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             mv target/${{ matrix.target }}/release/motif_methylation_state.exe motif_methylation_state-${{ matrix.name_suffix }}${{ matrix.extension }}
@@ -56,7 +55,7 @@ jobs:
             mv target/${{ matrix.target }}/release/motif_methylation_state motif_methylation_state-${{ matrix.name_suffix }}${{ matrix.extension }}
           fi
         shell: bash
-        
+
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
@@ -74,14 +73,14 @@ jobs:
           pattern: motif_methylation_state-*
           merge-multiple: true
           run-id: ${{ github.event.workflow_run_id }}
-      - name: Create github release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}  # Use the tag as the release version
           release_name: "Release ${{ github.ref_name }}"
           files: |
-            methylation_utils-linux
-            methylation_utils-windows.exe
-            methylation_utils-macos
+            motif_methylation_state-linux
+            motif_methylation_state-windows.exe
+            motif_methylation_state-macos
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
