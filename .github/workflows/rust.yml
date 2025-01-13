@@ -3,6 +3,10 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+  releases: write
+
 env:
   RUSTFLAGS: "-Awarnings"  # Correct syntax
 
@@ -76,7 +80,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}  # Use the tag as the release version
+          tag_name: ${{ github.ref_name }}
           release_name: "Release ${{ github.ref_name }}"
           files: |
             motif_methylation_state-linux
