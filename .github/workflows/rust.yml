@@ -40,12 +40,12 @@ jobs:
 
       - name: Build the binary
         env:
-          RUSTFLAGS: "-A warnings"
+          RUSTFLAGS: "-Awarnings"
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: test the binary
         env:
-          RUSTFLAGS: "-A warnings"
+          RUSTFLAGS: "-Awarnings"
         run: cargo test --release --target ${{ matrix.target }}
 
       - name: rename binary for upload
