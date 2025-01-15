@@ -1,4 +1,4 @@
-**Me**thylation **mo**tif **pair**
+# <ins>Me</ins>thylation <ins>mo</ins>tif <ins>pair</ins>
 
 A small utility CLI for getting methylation of motif pairs. 
 ```
