@@ -1,5 +1,5 @@
 use crate::sequence::Contig;
-use ahash::AHashMap;
+use std::collections::HashMap;
 use anyhow::Context;
 use anyhow::Result;
 use seq_io::fasta::{Reader, Record};
