@@ -1,4 +1,3 @@
-
 // src/cli.rs
 use clap::{Parser, ValueEnum};
 /// A CLI tool that processes a file with optional numeric parameters.
@@ -6,7 +5,7 @@ use clap::{Parser, ValueEnum};
 #[command(name = "my_cli", version, about = "An example CLI")]
 pub struct Cli {
     #[arg(
-        value_name = "REFERENCE", 
+        value_name = "REFERENCE",
         help = "File path to the fasta file with references"
     )]
     pub reference: String,
@@ -33,23 +32,18 @@ pub struct Cli {
     pub out: String,
 
     #[arg(
-        long, 
-        default_value = "5", 
+        long,
+        default_value = "5",
         help = "Minimum coverage required to consider a position"
     )]
     pub min_cov: u32,
-    
-    #[arg(
-        long, 
-        short,
-        default_value = "5", 
-        help = "Number of threads to use"
-    )]
+
+    #[arg(long, short, default_value = "5", help = "Number of threads to use")]
     pub threads: u32,
 
     #[arg(
-        long, 
-        default_value = "100", 
+        long,
+        default_value = "100",
         help = "Number of contigs to load and process at once"
     )]
     pub batch_size: u32,
@@ -68,5 +62,5 @@ pub struct Cli {
 pub enum LogLevel {
     verbose,
     normal,
-    silent
+    silent,
 }

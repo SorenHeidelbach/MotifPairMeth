@@ -24,7 +24,6 @@ impl Strand {
     }
 }
 
-
 impl FromStr for Strand {
     type Err = anyhow::Error;
 

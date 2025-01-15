@@ -3,9 +3,6 @@ on:
     tags:
       - "v*"
 
-env:
-  RUSTFLAGS: "-Awarnings"  # Correct syntax
-
 jobs:
   build-and-release:
     runs-on: ${{ matrix.os }}
@@ -38,13 +35,9 @@ jobs:
           override: true
 
       - name: Build the binary
-        env:
-          RUSTFLAGS: "-Awarnings"  # Corrected syntax
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Test the binary
-        env:
-          RUSTFLAGS: "-Awarnings"  # Corrected syntax
         run: cargo test --release --target ${{ matrix.target }}
 
       - name: Rename binary for upload

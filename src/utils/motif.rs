@@ -14,7 +14,6 @@ pub trait MotifLike {
     fn as_string(&self) -> String;
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Motif {
     pub sequence: Vec<IupacBase>,
@@ -34,8 +33,7 @@ impl Motif {
             .collect::<Result<Vec<IupacBase>, anyhow::Error>>()?;
         let mod_type = mod_type.parse::<ModType>()?;
 
-        let base_at_position = parsed_sequence.get(position as usize)
-            .ok_or_else(|| {
+        let base_at_position = parsed_sequence.get(position as usize).ok_or_else(|| {
             anyhow::anyhow!(
                 "Position {} is out of bounds for sequence: {}",
                 position,
@@ -95,10 +93,14 @@ impl MotifLike for Motif {
 
     fn as_string(&self) -> String {
         let sequence: String = self.sequence.iter().map(|b| b.to_string()).collect();
-        format!("{}_{}_{}", sequence, self.mod_type.to_string(), self.position)
+        format!(
+            "{}_{}_{}",
+            sequence,
+            self.mod_type.to_string(),
+            self.position
+        )
     }
 }
-
 
 impl ComplementMotif {
     pub fn new(sequence: &str, mod_type: &str, position: u8) -> Result<Self, anyhow::Error> {
@@ -150,7 +152,12 @@ impl MotifLike for ComplementMotif {
 
     fn as_string(&self) -> String {
         let sequence: String = self.sequence.iter().map(|b| b.to_string()).collect();
-        format!("{}_{}_{}", sequence, self.mod_type.to_string(), self.position)
+        format!(
+            "{}_{}_{}",
+            sequence,
+            self.mod_type.to_string(),
+            self.position
+        )
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -174,9 +181,12 @@ impl MotifPair {
             }
         }
         let is_palindromic = forward == reverse;
-        Ok(Self { forward, reverse, is_palindromic })
+        Ok(Self {
+            forward,
+            reverse,
+            is_palindromic,
+        })
     }
-
 }
 
 #[cfg(test)]
@@ -282,5 +292,4 @@ mod tests {
         let pair = MotifPair::new(forward, reverse);
         assert!(pair.is_err());
     }
-
 }

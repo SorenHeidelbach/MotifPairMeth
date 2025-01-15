@@ -1,9 +1,8 @@
-
+use crate::motif::{Motif, MotifLike};
+use crate::pileup::{PileupChunk, PileupRecord};
 use ahash::{HashMap, HashMapExt};
 use motif_methylation_state::utils::modtype::ModType;
 use motif_methylation_state::utils::strand::Strand;
-use crate::pileup::{PileupRecord, PileupChunk};
-use crate::motif::{Motif, MotifLike};
 use regex::Regex;
 
 #[derive(Debug, Clone)]
@@ -29,7 +28,10 @@ impl Contig {
 
     pub fn add_records(&mut self, records: PileupChunk) {
         if records.reference != self.reference {
-            panic!("Reference mismatch: {} != {}", records.reference, self.reference);
+            panic!(
+                "Reference mismatch: {} != {}",
+                records.reference, self.reference
+            );
         }
         self.records.reserve(records.records.len());
         for record in records.records {
@@ -43,7 +45,8 @@ impl Contig {
         let re = Regex::new(&motif_regex).unwrap();
         // Find matches in the contig sequence of the motif
         re.find_iter(&self.sequence)
-            .map(|m| indices.push(m.start() as usize + motif.position as usize)).for_each(drop);
+            .map(|m| indices.push(m.start() as usize + motif.position as usize))
+            .for_each(drop);
         if indices.is_empty() {
             return None;
         }
@@ -56,7 +59,8 @@ impl Contig {
         let motif_regex = complement_motif.regex().unwrap();
         let re = Regex::new(&motif_regex).unwrap();
         re.find_iter(&self.sequence)
-            .map(|m| indices.push(m.start() as usize + complement_motif.position as usize)).for_each(drop);
+            .map(|m| indices.push(m.start() as usize + complement_motif.position as usize))
+            .for_each(drop);
         if indices.is_empty() {
             return None;
         }
@@ -64,15 +68,11 @@ impl Contig {
     }
 }
 
-
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pileup::PileupRecord;
     use crate::motif::Motif;
+    use crate::pileup::PileupRecord;
     use motif_methylation_state::utils::modtype::ModType;
     use motif_methylation_state::utils::strand::Strand;
 
@@ -91,7 +91,10 @@ mod tests {
         };
         contig.add_record(record.clone());
         assert_eq!(contig.records.len(), 1);
-        assert_eq!(contig.records.get(&(0, Strand::Positive, ModType::SixMA)), Some(&record));
+        assert_eq!(
+            contig.records.get(&(0, Strand::Positive, ModType::SixMA)),
+            Some(&record)
+        );
     }
 
     #[test]
@@ -124,8 +127,14 @@ mod tests {
         };
         contig.add_records(records.clone());
         assert_eq!(contig.records.len(), 2);
-        assert_eq!(contig.records.get(&(0, Strand::Positive, ModType::SixMA)), Some(&records.records[0]));
-        assert_eq!(contig.records.get(&(1, Strand::Positive, ModType::SixMA)), Some(&records.records[1]));
+        assert_eq!(
+            contig.records.get(&(0, Strand::Positive, ModType::SixMA)),
+            Some(&records.records[0])
+        );
+        assert_eq!(
+            contig.records.get(&(1, Strand::Positive, ModType::SixMA)),
+            Some(&records.records[1])
+        );
     }
 
     #[test]
@@ -135,8 +144,10 @@ mod tests {
         let indeces = contig.find_motif_indeces(&motif).unwrap();
         assert_eq!(indeces, vec![0, 4, 8, 12]);
 
-        
-        let contig = Contig::new("test", "ACCCCGGAGGTCGTACGCCGGATCCGGTACCGGACGTACCGGTCGCCGGAT");
+        let contig = Contig::new(
+            "test",
+            "ACCCCGGAGGTCGTACGCCGGATCCGGTACCGGACGTACCGGTCGCCGGAT",
+        );
         let motif = Motif::new("CCGGA", "6mA", 4).unwrap();
         let indeces = contig.find_motif_indeces(&motif);
         assert_eq!(indeces, Some(vec![7, 21, 33, 49]));
@@ -149,7 +160,10 @@ mod tests {
         let indeces = contig.find_complement_motif_indeces(&motif);
         assert_eq!(indeces, Some(vec![3, 7, 11, 15]));
 
-        let contig = Contig::new("test", "ACCTCCGGCCGGAGGTCGTACGCCGGATCCGGTCCGGTCCGGTACCGGACGTACCGGTCGCCGGAT");
+        let contig = Contig::new(
+            "test",
+            "ACCTCCGGCCGGAGGTCGTACGCCGGATCCGGTCCGGTCCGGTACCGGACGTACCGGTCGCCGGAT",
+        );
         let motif = Motif::new("CCGGA", "6mA", 4).unwrap();
         let indeces = contig.find_complement_motif_indeces(&motif);
         assert_eq!(indeces, Some(vec![3, 27, 32, 37]));

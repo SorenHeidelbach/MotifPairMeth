@@ -1,12 +1,6 @@
-use ahash::{HashMap, HashMapExt};
 use crate::pileup::PileupChunk;
 use crate::sequence::Contig;
-
-
-
-
-
-
+use ahash::{HashMap, HashMapExt};
 
 pub struct GenomeWorkSpaceBuilder {
     pub contigs: HashMap<String, Contig>,
@@ -20,7 +14,8 @@ impl GenomeWorkSpaceBuilder {
     }
 
     pub fn add_contig(&mut self, contig: &Contig) {
-        self.contigs.insert(contig.reference.clone(), contig.clone());
+        self.contigs
+            .insert(contig.reference.clone(), contig.clone());
     }
 
     pub fn push_records(&mut self, records: PileupChunk) {
@@ -38,7 +33,6 @@ impl GenomeWorkSpaceBuilder {
         }
     }
 }
-
 
 pub struct GenomeWorkspace {
     pub contigs: HashMap<String, Contig>,

@@ -1,43 +1,32 @@
-use std::{
-    collections::btree_map::Keys, f32::NAN, fs::File, path::Path, process::Output, time::Instant
-};
+use anyhow::{anyhow, bail, Result};
 use bio::bio_types::strand;
-use motif_methylation_state::utils::{
-    modtype, 
-    motif,
-    motif::MotifLike,
-    strand::Strand,
-};
 use clap::Parser;
 use env_logger::Env;
 use log::{debug, info, log_enabled, warn, Level};
-use anyhow::{Result, bail, anyhow};
+use motif_methylation_state::utils::{modtype, motif, motif::MotifLike, strand::Strand};
 use polars::prelude::OwnedBatchedCsvReader;
+use std::{
+    collections::btree_map::Keys, f32::NAN, fs::File, path::Path, process::Output, time::Instant,
+};
 
-mod pileup;
 mod cli;
-mod fasta_reader;
-mod sequence;
 mod data;
+mod fasta_reader;
+mod pileup;
+mod sequence;
 
 fn main() {
     let args = cli::Cli::parse();
     // Set up logging level
     match args.verbosity {
         cli::LogLevel::silent => {
-            env_logger::Builder::from_env(
-                Env::default().default_filter_or("off")
-            ).init();
+            env_logger::Builder::from_env(Env::default().default_filter_or("off")).init();
         }
         cli::LogLevel::normal => {
-            env_logger::Builder::from_env(
-                Env::default().default_filter_or("info")
-            ).init();
+            env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
         }
         cli::LogLevel::verbose => {
-            env_logger::Builder::from_env(
-                Env::default().default_filter_or("debug")
-            ).init();
+            env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
         }
     }
 
@@ -48,12 +37,10 @@ fn main() {
         true => {
             panic!("Output directory already exists");
         }
-        false => {
-            match std::fs::create_dir(out_path) {
-                Ok(_) => info!("Created output directory"),
-                Err(e) => panic!("Could not create output directory: {}", e),
-            }
-        }
+        false => match std::fs::create_dir(out_path) {
+            Ok(_) => info!("Created output directory"),
+            Err(e) => panic!("Could not create output directory: {}", e),
+        },
     }
 
     // Run the main function
@@ -63,10 +50,7 @@ fn main() {
     }
 }
 
-
-fn motif_methylation_state(
-    args: &cli::Cli,
-) -> Result<(), anyhow::Error> {
+fn motif_methylation_state(args: &cli::Cli) -> Result<(), anyhow::Error> {
     let global_timer = Instant::now();
     let motifs = match &args.motifs {
         Some(motifs) => parse_motif_pair_strings(motifs.clone())?,
@@ -100,17 +84,14 @@ fn motif_methylation_state(
 
                 for (refenrece_id, contig) in genome_work_space.contigs.into_iter() {
                     motif_methylation_pattern(&contig, &motifs, &args.out)?;
-                    
                 }
             }
             None => {
                 info!("Contig did not contain any records");
             }
-        }   
+        }
 
         info!("Finished batch in {:?}", timer.elapsed());
-        
-
 
         if pileup_reader.eof_reached {
             break;
@@ -120,20 +101,20 @@ fn motif_methylation_state(
     Ok(())
 }
 
-
 fn motif_methylation_pattern(
     contig: &sequence::Contig,
     motifs: &Vec<motif::MotifPair>,
     out: &str,
 ) -> Result<(), anyhow::Error> {
     let out_path = format!("{}/{}.tsv", out, contig.reference);
-    let mut record_writer = MotifPairRecordWriter::new(&out_path)?; 
+    let mut record_writer = MotifPairRecordWriter::new(&out_path)?;
     record_writer.write_header()?;
 
     for motif in motifs {
         debug!("Processing motif pair: {:?}", motif);
         debug!("Processing forward strand");
-        let mod_position_shift = motif.reverse.reverse_complement().unwrap().position - motif.forward.position;
+        let mod_position_shift =
+            motif.reverse.reverse_complement().unwrap().position - motif.forward.position;
 
         // Process forward strand
         let fwd_indices = match contig.find_motif_indeces(&motif.forward) {
@@ -141,11 +122,19 @@ fn motif_methylation_pattern(
             None => continue,
         };
         for index in fwd_indices {
-            let record_1 = match contig.records.get(&(index, Strand::Positive, motif.forward.mod_type)) {
-                Some(r) => r,
-                None => continue,
-            };
-            let record_2 = match contig.records.get(&(index + mod_position_shift as usize, Strand::Negative, motif.reverse.mod_type)) {
+            let record_1 =
+                match contig
+                    .records
+                    .get(&(index, Strand::Positive, motif.forward.mod_type))
+                {
+                    Some(r) => r,
+                    None => continue,
+                };
+            let record_2 = match contig.records.get(&(
+                index + mod_position_shift as usize,
+                Strand::Negative,
+                motif.reverse.mod_type,
+            )) {
                 Some(r) => r,
                 None => continue,
             };
@@ -169,14 +158,17 @@ fn motif_methylation_pattern(
                 Some(r) => r,
                 None => continue,
             };
-            let key2 = (index - mod_position_shift as usize, Strand::Positive, motif.reverse.mod_type);
+            let key2 = (
+                index - mod_position_shift as usize,
+                Strand::Positive,
+                motif.reverse.mod_type,
+            );
             let record_2 = match contig.records.get(&key2) {
                 Some(r) => r,
                 None => continue,
             };
             record_writer.write_record(motif, record_1, record_2)?;
         }
-        
     }
     record_writer.flush()?;
     Ok(())
@@ -195,7 +187,7 @@ impl MotifPairRecordWriter {
         Ok(Self { csv_writer })
     }
 
-    pub fn write_header (&mut self) -> Result<(), anyhow::Error> {
+    pub fn write_header(&mut self) -> Result<(), anyhow::Error> {
         self.csv_writer.write_record(&[
             "contig_id",
             "motif_start_position",
@@ -248,31 +240,28 @@ impl MotifPairRecordWriter {
             x if x > 0.1 => "moderately differential",
             _ => "non-differential",
         };
-        self.csv_writer.write_record(
-            &[
-                record_1.reference.clone(),
-                start_position.to_string(),
-                record_1.strand.to_string(),
-                motif_pair.forward.sequence_string(),
-                motif_pair.forward.position.to_string(),
-                motif_pair.forward.mod_type.to_string().to_string(),
-                record_1.position.to_string(),
-                record_1.n_mod.to_string(),
-                n_nomod_1.to_string(),
-                record_1.n_diff.to_string(),
-                motif_2_mod_pos.to_string(),
-                motif_pair.reverse.mod_type.to_string().to_string(),
-                record_2.position.to_string(),
-                record_2.n_mod.to_string(),
-                n_nomod_2.to_string(),
-                record_2.n_diff.to_string(),
-                abs_methylation_diff.to_string(),
-                odds_ratio.to_string(),
-                classification.to_string(),
-            ],
-        )?;
+        self.csv_writer.write_record(&[
+            record_1.reference.clone(),
+            start_position.to_string(),
+            record_1.strand.to_string(),
+            motif_pair.forward.sequence_string(),
+            motif_pair.forward.position.to_string(),
+            motif_pair.forward.mod_type.to_string().to_string(),
+            record_1.position.to_string(),
+            record_1.n_mod.to_string(),
+            n_nomod_1.to_string(),
+            record_1.n_diff.to_string(),
+            motif_2_mod_pos.to_string(),
+            motif_pair.reverse.mod_type.to_string().to_string(),
+            record_2.position.to_string(),
+            record_2.n_mod.to_string(),
+            n_nomod_2.to_string(),
+            record_2.n_diff.to_string(),
+            abs_methylation_diff.to_string(),
+            odds_ratio.to_string(),
+            classification.to_string(),
+        ])?;
         Ok(())
-
     }
     pub fn flush(&mut self) -> Result<(), anyhow::Error> {
         self.csv_writer.flush()?;
@@ -294,19 +283,15 @@ fn parse_motif_pair_string(motif_pair_string: String) -> Result<motif::MotifPair
     let position_2 = parts[4].parse::<u8>()?;
     let position_2 = sequence_2.len() as u8 - position_2 - 1;
     let motif_2 = motif::Motif::new(sequence_2.as_str(), mod_type_2, position_2)?;
-    let pair = motif::MotifPair::new(motif_1, motif_2)?;  
+    let pair = motif::MotifPair::new(motif_1, motif_2)?;
     Ok(pair)
 }
 
-fn parse_motif_pair_strings(motif_pair_strings: Vec<String>) -> Result<Vec<motif::MotifPair>, anyhow::Error> {
-    motif_pair_strings.into_iter().map(|s| parse_motif_pair_string(s)).collect()
+fn parse_motif_pair_strings(
+    motif_pair_strings: Vec<String>,
+) -> Result<Vec<motif::MotifPair>, anyhow::Error> {
+    motif_pair_strings
+        .into_iter()
+        .map(|s| parse_motif_pair_string(s))
+        .collect()
 }
-
-
-
-
-
-
-
-
-
