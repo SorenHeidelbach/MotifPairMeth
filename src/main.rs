@@ -3,8 +3,7 @@ use bio::bio_types::strand;
 use clap::Parser;
 use env_logger::Env;
 use log::{debug, info, log_enabled, warn, Level};
-use motif_methylation_state::utils::{modtype, motif, motif::MotifLike, strand::Strand};
-use polars::prelude::OwnedBatchedCsvReader;
+use memopair::utils::{modtype, motif, motif::MotifLike, strand::Strand};
 use std::{
     collections::btree_map::Keys, f32::NAN, fs::File, path::Path, process::Output, time::Instant,
 };
@@ -44,13 +43,13 @@ fn main() {
     }
 
     // Run the main function
-    match motif_methylation_state(&args) {
+    match memopair(&args) {
         Ok(_) => info!("Finished running motif methylation state"),
         Err(e) => panic!("Error running motif methylation state: {}", e),
     }
 }
 
-fn motif_methylation_state(args: &cli::Cli) -> Result<(), anyhow::Error> {
+fn memopair(args: &cli::Cli) -> Result<(), anyhow::Error> {
     let global_timer = Instant::now();
     let motifs = match &args.motifs {
         Some(motifs) => parse_motif_pair_strings(motifs.clone())?,
@@ -77,7 +76,9 @@ fn motif_methylation_state(args: &cli::Cli) -> Result<(), anyhow::Error> {
                 for chunk in chunks {
                     let contig_id = &chunk.reference;
                     info!("Processing contig: {}", contig_id);
-                    builder.add_contig(reference.get(contig_id).unwrap());
+                    debug!("Adding contig to workspace");
+                    builder.add_contig(reference.get(contig_id).unwrap().clone());
+                    debug!("Adding records to contig");
                     builder.push_records(chunk);
                 }
                 let genome_work_space = builder.build();

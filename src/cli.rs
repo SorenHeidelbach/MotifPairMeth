@@ -2,7 +2,7 @@
 use clap::{Parser, ValueEnum};
 /// A CLI tool that processes a file with optional numeric parameters.
 #[derive(Parser, Debug)]
-#[command(name = "my_cli", version, about = "An example CLI")]
+#[command(name = "memopair", version, about = "Methylation Motif Pairs")]
 pub struct Cli {
     #[arg(
         value_name = "REFERENCE",
@@ -25,7 +25,7 @@ pub struct Cli {
     #[arg(
         long,
         short,
-        default_value = "motif_methylation_state",
+        default_value = "memopair",
         value_name = "OUT",
         help = "Output file path"
     )]

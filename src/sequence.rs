@@ -1,8 +1,8 @@
 use crate::motif::{Motif, MotifLike};
 use crate::pileup::{PileupChunk, PileupRecord};
 use ahash::{HashMap, HashMapExt};
-use motif_methylation_state::utils::modtype::ModType;
-use motif_methylation_state::utils::strand::Strand;
+use memopair::utils::modtype::ModType;
+use memopair::utils::strand::Strand;
 use regex::Regex;
 
 #[derive(Debug, Clone)]
@@ -73,8 +73,8 @@ mod tests {
     use super::*;
     use crate::motif::Motif;
     use crate::pileup::PileupRecord;
-    use motif_methylation_state::utils::modtype::ModType;
-    use motif_methylation_state::utils::strand::Strand;
+    use memopair::utils::modtype::ModType;
+    use memopair::utils::strand::Strand;
 
     #[test]
     fn test_contig_add_record() {
