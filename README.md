@@ -3,7 +3,7 @@
 A small utility CLI for getting methylation of motif pairs. 
 ```
 # Usage
-Usage: motif_methylation_state [OPTIONS] <REFERENCE> <PILEUP> [MOTIFS]...
+Usage: memopair [OPTIONS] <REFERENCE> <PILEUP> [MOTIFS]...
 
 Arguments:
   <REFERENCE>  File path to the fasta file with references
