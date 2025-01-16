@@ -16,6 +16,11 @@ regex = "1.11.1"
 ahash = "0.8.11"
 atoi = "2.0.0"
 
+[lib]
+name = "utils"
+path = "src/lib/lib.rs"
+
+
 
 [profile.release]
 debug = true

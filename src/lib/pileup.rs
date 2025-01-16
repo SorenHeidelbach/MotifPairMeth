@@ -3,7 +3,10 @@ use anyhow::Result;
 use atoi;
 use csv::{ByteRecord, ReaderBuilder};
 use log::{debug, info, warn};
-use memopair::utils::{modtype::ModType, strand::Strand};
+use crate::{
+    modtype::ModType, 
+    strand::Strand
+};
 use std::collections::VecDeque;
 use std::io::Read;
 use ahash::AHashMap as HashMap;

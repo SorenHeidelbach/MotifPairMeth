@@ -1,5 +1,4 @@
 use std::{fmt::Display, str::FromStr};
-
 use anyhow::{bail, Result};
 
 /// Represents the DNA strand of reference.

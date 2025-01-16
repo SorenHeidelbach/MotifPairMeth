@@ -1,4 +1,4 @@
-use crate::utils::{iupac::IupacBase, modtype::ModType};
+use crate::{iupac::IupacBase, modtype::ModType};
 use anyhow::Result;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

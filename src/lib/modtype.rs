@@ -1,6 +1,7 @@
-use crate::utils::iupac::IupacBase;
+use crate::iupac::IupacBase;
 use anyhow::{bail, Result};
 use std::{fmt, str::FromStr};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum ModType {
     SixMA,

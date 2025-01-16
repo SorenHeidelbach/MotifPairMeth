@@ -1,55 +1,22 @@
-use anyhow::{anyhow, bail, Result};
-use bio::bio_types::strand;
-use clap::Parser;
-use env_logger::Env;
-use log::{debug, info, log_enabled, warn, Level};
-use memopair::utils::{modtype, motif, motif::MotifLike, strand::Strand};
+use anyhow::{bail, Result};
+use log::{debug, info};
+use utils::{
+    motif, 
+    motif::MotifLike, 
+    strand::Strand,
+    pileup
+};
 use std::{
-    collections::btree_map::Keys, f32::NAN, fs::File, path::Path, process::Output, time::Instant,
+    fs::File, path::Path,  time::Instant,
+};
+use crate::{
+    fasta_reader,
+    sequence,
+    data,
+    cli
 };
 
-mod cli;
-mod data;
-mod fasta_reader;
-mod pileup;
-mod sequence;
-
-fn main() {
-    let args = cli::Cli::parse();
-    // Set up logging level
-    match args.verbosity {
-        cli::LogLevel::silent => {
-            env_logger::Builder::from_env(Env::default().default_filter_or("off")).init();
-        }
-        cli::LogLevel::normal => {
-            env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-        }
-        cli::LogLevel::verbose => {
-            env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-        }
-    }
-
-    // Create output directory
-    info!("Running motif methylation state");
-    let out_path = Path::new(&args.out);
-    match out_path.exists() {
-        true => {
-            panic!("Output directory already exists");
-        }
-        false => match std::fs::create_dir(out_path) {
-            Ok(_) => info!("Created output directory"),
-            Err(e) => panic!("Could not create output directory: {}", e),
-        },
-    }
-
-    // Run the main function
-    match memopair(&args) {
-        Ok(_) => info!("Finished running motif methylation state"),
-        Err(e) => panic!("Error running motif methylation state: {}", e),
-    }
-}
-
-fn memopair(args: &cli::Cli) -> Result<(), anyhow::Error> {
+pub fn memopair(args: &cli::Cli) -> Result<(), anyhow::Error> {
     let global_timer = Instant::now();
     let motifs = match &args.motifs {
         Some(motifs) => parse_motif_pair_strings(motifs.clone())?,
@@ -269,6 +236,8 @@ impl MotifPairRecordWriter {
         Ok(())
     }
 }
+
+
 
 fn parse_motif_pair_string(motif_pair_string: String) -> Result<motif::MotifPair, anyhow::Error> {
     let parts: Vec<&str> = motif_pair_string.split('_').collect();
