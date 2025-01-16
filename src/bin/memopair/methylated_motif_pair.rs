@@ -175,7 +175,9 @@ impl MotifPairRecordWriter {
             "n_diff_2",
             "methylation_difference",
             "odds_ratio",
-            "classification",
+            "log_odds_ratio",
+            "log_odds_ratio_var",
+            "z_score",
         ])?;
         Ok(())
     }
@@ -203,11 +205,10 @@ impl MotifPairRecordWriter {
         } else {
             odds_ratio = odds_1 / odds_2;
         }
-        let classification = match abs_methylation_diff {
-            x if x > 0.5 => "differential",
-            x if x > 0.1 => "moderately differential",
-            _ => "non-differential",
-        };
+
+        let log_odds_ratio = odds_ratio.ln();
+        let log_odds_ratio_var = (1.0 / n_nomod_1 as f64) + (1.0 /record_1.n_mod as f64) + (1.0 / n_nomod_2 as f64)  + (1.0 / record_2.n_mod as f64);
+        let z_score = log_odds_ratio / log_odds_ratio_var.sqrt();
         self.csv_writer.write_record(&[
             record_1.reference.clone(),
             start_position.to_string(),
@@ -227,7 +228,9 @@ impl MotifPairRecordWriter {
             record_2.n_diff.to_string(),
             abs_methylation_diff.to_string(),
             odds_ratio.to_string(),
-            classification.to_string(),
+            log_odds_ratio.to_string(),
+            log_odds_ratio_var.to_string(),
+            z_score.to_string(),
         ])?;
         Ok(())
     }
