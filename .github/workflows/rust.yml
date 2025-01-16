@@ -6,6 +6,9 @@ on:
 permissions:
   contents: write
 
+env:
+  RUSTFLAGS: "-Awarnings"
+
 jobs:
   build-and-release:
     runs-on: ${{ matrix.os }}
