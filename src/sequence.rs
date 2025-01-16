@@ -26,7 +26,7 @@ impl Contig {
         self.records.insert(key, record);
     }
 
-    pub fn add_records(&mut self, records: PileupChunk) {
+    pub fn add_records(&mut self, mut records: PileupChunk) {
         if records.reference != self.reference {
             panic!(
                 "Reference mismatch: {} != {}",
@@ -34,7 +34,7 @@ impl Contig {
             );
         }
         self.records.reserve(records.records.len());
-        for record in records.records {
+        for record in records.records.drain(..) {
             self.add_record(record);
         }
     }

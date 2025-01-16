@@ -13,16 +13,15 @@ impl GenomeWorkSpaceBuilder {
         }
     }
 
-    pub fn add_contig(&mut self, contig: &Contig) {
+    pub fn add_contig(&mut self, contig:Contig) {
         self.contigs
-            .insert(contig.reference.clone(), contig.clone());
+            .insert(contig.reference.clone(), contig);
     }
 
     pub fn push_records(&mut self, records: PileupChunk) {
-        let reference = records.reference.clone();
         let contig = self
             .contigs
-            .get_mut(&reference)
+            .get_mut(records.reference.as_str())
             .expect("Could not find contig");
         contig.add_records(records);
     }
