@@ -20,6 +20,9 @@ atoi = "2.0.0"
 name = "utils"
 path = "src/lib/lib.rs"
 
+[[bin]]
+name = "memopair"
+path = "src/bin/memopair/main.rs"
 
 
 [profile.release]
