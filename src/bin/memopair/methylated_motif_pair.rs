@@ -82,14 +82,18 @@ fn motif_methylation_pattern(
         debug!("Processing motif pair: {:?}", motif);
         debug!("Processing forward strand");
         let mod_position_shift =
-            motif.reverse.reverse_complement().unwrap().position - motif.forward.position;
+            motif.reverse.reverse_complement().unwrap().position as i8 - motif.forward.position as i8;
 
         // Process forward strand
         let fwd_indices = match contig.find_motif_indeces(&motif.forward) {
             Some(i) => i,
             None => continue,
         };
-        for index in fwd_indices {
+        for index  in fwd_indices {
+            let index_2 = index as isize + mod_position_shift as isize;
+            if index_2 < 0 {
+                continue;
+            }
             let record_1 =
                 match contig
                     .records
@@ -99,7 +103,7 @@ fn motif_methylation_pattern(
                     None => continue,
                 };
             let record_2 = match contig.records.get(&(
-                index + mod_position_shift as usize,
+                index_2 as usize,
                 Strand::Negative,
                 motif.reverse.mod_type,
             )) {
