@@ -273,6 +273,15 @@ mod tests {
         );
         assert_eq!(revcomp.mod_type, ModType::SixMA);
         assert_eq!(revcomp.position, 3);
+
+        let motif = Motif::new("CAGCTG", "4mC", 3).unwrap();
+        let revcomp = motif.reverse_complement().unwrap();
+        assert_eq!(
+            revcomp.sequence,
+            vec![IupacBase::C, IupacBase::A, IupacBase::G, IupacBase::C, IupacBase::T, IupacBase::G]
+        );
+        assert_eq!(revcomp.mod_type, ModType::FourMC);
+        assert_eq!(revcomp.position, 2);
     }
 
     #[test]

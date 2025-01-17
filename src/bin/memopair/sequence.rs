@@ -177,5 +177,10 @@ mod tests {
         let motif = Motif::new("CCTCC", "5mC", 0).unwrap();
         let indeces = contig.find_complement_motif_indeces(&motif);
         assert_eq!(indeces, Some(vec![4, 10, 16])); // only count full matches
+
+        let contig = Contig::new("test", "GGAGCAGCTGGAGGAGGACAGCTGGGAGG");
+        let motif = Motif::new("CAGCTG", "4mC", 3).unwrap();
+        let indeces = contig.find_complement_motif_indeces(&motif);
+        assert_eq!(indeces, Some(vec![6, 20])); // only count full matches
     }
 }
